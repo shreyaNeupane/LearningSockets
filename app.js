@@ -2,46 +2,87 @@ const express = require("express");
 const app = express();
 const { Server } = require("socket.io");
 const connectToDatabase = require(".");
+const Book = require("./model/bookModel");
 
-connectToDatabase()
+connectToDatabase();
+
 const server = app.listen(4000, () => {
   console.log("Server has started at 4000");
 });
-//on - request pathaune
-//emit  - response recieve garne but if there is no listener data gets lost cause there is no handler but data send even if there is listener or not
 
 // creating a Socket.IO server , we should only once instance throughout project
 const io = new Server(server);
 
+//crud operation using web sockets
 io.on("connection", (socket) => {
   console.log("Someone has connected");
+  //addBook
+  socket.on("addBook", async (data) => {
+    try {
+      if (data) {
+        const { bookName, bookPrice } = data;
+        const newBook = await Books.create({
+          bookName,
+          bookPrice,
+        });
+        socket.emit("response", {
+          status: 200,
+          message: "Book created sucessfully ",
+          data: newBook,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      socket.emit("response", { status: 500, message: "somethng went wrong" });
+    }
+  });
 
-  // socket.on("disconnect",()=>{
-  //     console.log("someone has disconnected")
-  // })
-
-  //client bata kei data aaudaixa vane [on] le linxa i.e postman , eventname - sendData
-  // socket.on("sendData",(data)=>{
-  //     console.log(data)
-  // })
-
-  //sending data form server to client(i.e postman) backend to frontend
-  // socket.emit("hi", {
-  //   greeting: "Hello how are you"
-  // });
-
-  // socket.on("sendData",(data)=>{
-  //     if(data){
-  //       socket.emit("response","Thank you your data was recived")
-  //     }
-  // })
-
-
-  socket.on("sendData", (data) => {
-    if(data){
-      // to specific id , returning same data to frontend
-      io.to(socket.id).emit('response',{data})
+  ///get book
+  socket.on("getBook", async (data) => {
+    if (data) {
+      const books = await Book.find();
+      socket.emit("response", {
+        status: 200,
+        message: "Book fetched ",
+        data: books,
+      });
+    }
+  });
+  //update book
+  socket.on("updateBook", async (data) => {
+    try {
+      if (data) {
+        const { bookName, bookPrice, bookId } = data;
+        const updatedBook = await Book.findByIdAndUpdate(
+          bookId,
+          {
+            bookName,
+            bookPrice,
+          },
+          {
+            new: true,
+          }
+        );
+        socket.emit("response", {
+          status: 200,
+          message: "Book updated",
+          data: updatedBook,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      socket.emit("response", { status: 500, message: "somethng went wrong" });
+    }
+  });
+  //delete book
+  socket.on("deleteBook", async (data) => {
+    if (data) {
+      const books = await Book.findByIdAndDelete();
+      socket.emit("response", {
+        status: 200,
+        message: "Book deleted ",
+        data: books,
+      });
     }
   });
 });
-
